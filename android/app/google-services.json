@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "252561332006",
+    "project_id": "gen-lang-client-0532770317",
+    "storage_bucket": "gen-lang-client-0532770317.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:252561332006:android:c2d0a479ad3a66074393e7",
+        "android_client_info": {
+          "package_name": "com.aksharadeepa.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "252561332006-1e671faqd7906tn3sup95ep0j2n7thgk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aksharadeepa.app",
+            "certificate_hash": "454bffc70625f175286ddf644195be97af08fac7"
+          }
+        },
+        {
+          "client_id": "252561332006-rv546ijg5ubupaa84qlt0sdu8auitmo8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4inF1xlxES25rqEbfexjzBJggi8m4NAk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "252561332006-rv546ijg5ubupaa84qlt0sdu8auitmo8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
