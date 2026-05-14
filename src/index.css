@@ -22,11 +22,11 @@
 
   /* App Layouts - Neo-SaaS Style */
   .app-container {
-    @apply max-w-7xl mx-auto w-full px-6 md:px-12 xl:px-16 py-8 md:py-16;
+    @apply max-w-7xl mx-auto w-full px-4 md:px-12 xl:px-16 py-6 md:py-16;
   }
 
   .app-card {
-    @apply bg-[#F9F9F9] border border-[#E9E9E9] rounded-[2.5rem] p-8 md:p-12 transition-all duration-700;
+    @apply bg-[#F9F9F9] border border-[#E9E9E9] rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-12 transition-all duration-300;
   }
 
   .dark .app-card {
@@ -34,7 +34,7 @@
   }
 
   .app-heading {
-    @apply text-5xl md:text-7xl font-black tracking-[-0.04em] leading-[0.95] mb-6;
+    @apply text-3xl md:text-7xl font-black tracking-[-0.04em] leading-[0.95] mb-4 md:mb-6;
   }
 
   .app-subheading {

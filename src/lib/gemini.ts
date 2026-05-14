@@ -1,11 +1,12 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { MOCK_QUESTIONS } from "../mockData";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+export const genAI = new GoogleGenerativeAI(API_KEY);
 
 export const models = {
-  flash: "gemini-3-flash-preview",
-  pro: "gemini-3.1-pro-preview",
+  flash: "gemini-1.5-flash",
+  pro: "gemini-1.5-pro",
 };
 
 export async function generateQuiz(params: {
@@ -20,77 +21,61 @@ export async function generateQuiz(params: {
 }) {
   const { subject, chapter, count, level, type = 'MCQ', marks, weakTopics = [], askedIds = [] } = params;
   
-  const systemInstruction = `You are Akshara-Deepa, a premium AI academic companion for Class 10 Karnataka SSLC students.
+  if (!API_KEY) {
+    console.error("Gemini API Key is missing. Falling back to mock data.");
+    return MOCK_QUESTIONS.filter(q => q.subject === subject).slice(0, count);
+  }
+
+  const model = genAI.getGenerativeModel({
+    model: models.flash,
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            id: { type: SchemaType.STRING },
+            question: { type: SchemaType.STRING },
+            type: { type: SchemaType.STRING },
+            options: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            correctAnswer: { type: SchemaType.NUMBER },
+            fillAnswer: { type: SchemaType.STRING },
+            explanation: { type: SchemaType.STRING },
+            marks: { type: SchemaType.NUMBER },
+            subject: { type: SchemaType.STRING },
+            chapter: { type: SchemaType.STRING },
+            difficulty: { type: SchemaType.STRING },
+            conceptTag: { type: SchemaType.STRING },
+            hint: { type: SchemaType.STRING },
+            modelAnswer: { type: SchemaType.STRING },
+            keyPoints: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
+          },
+          required: ["id", "question", "type", "explanation", "marks", "subject", "chapter", "difficulty", "conceptTag"]
+        }
+      }
+    }
+  });
+
+  const prompt = `You are Akshara-Deepa, a premium AI academic companion for Class 10 Karnataka SSLC students.
 Generate ${count} unique ${level} difficulty quiz questions for Chapter: "${chapter}" of Subject: "${subject}".
-Align perfectly with Karnataka State Board SSLC 2025-26 syllabus and blueprint for the 2026 board exams.
+Align perfectly with Karnataka State Board SSLC 2025-26 syllabus and blueprint.
 
 Question specifications:
 - Focus on: ${type === 'BOARD_PATTERN' ? 'Mix of 1M, 2M, 3M, 4M, 5M' : type}
 - Target Marks: ${marks || 'As per SSLC standards'}
+- Weak topics to focus on: ${weakTopics.join(', ')}
+- Do NOT repeat these IDs: ${askedIds.join(', ')}
 
-SSLC Standards:
-- 1 Mark: MCQ or One-word (Recall)
-- 2 Marks: Short answers (Understanding/Explanation)
-- 3 Marks: Medium answers (Analytical/Process)
-- 4 Marks: Long answers (Synthesis/Evaluation)
-- 5 Marks: Diagrams, Maps, or complex derivations (In Science/Math/Social)
-
-Constraints:
-- Return ONLY valid JSON.
-- No markdown, no preamble.
-- Subject-specific context is mandatory.
-- Weak topics to focus on: ${weakTopics.join(', ')}.
-- Do NOT repeat these IDs: ${askedIds.join(', ')}.`;
+Return ONLY valid JSON array.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: models.flash,
-      contents: "Generate the quiz questions.",
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              question: { type: Type.STRING },
-              type: { type: Type.STRING, description: "MCQ|SHORT|LONG|FILL" },
-              options: { type: Type.ARRAY, items: { type: Type.STRING } },
-              correctAnswer: { type: Type.NUMBER, description: "Index of correct option for MCQ, or 0 otherwise" },
-              fillAnswer: { type: Type.STRING, description: "Correct answer string for FILL type" },
-              explanation: { type: Type.STRING },
-              marks: { type: Type.NUMBER },
-              subject: { type: Type.STRING },
-              chapter: { type: Type.STRING },
-              difficulty: { type: Type.STRING },
-              conceptTag: { type: Type.STRING },
-              hint: { type: Type.STRING },
-              modelAnswer: { type: Type.STRING, description: "For SHORT/LONG types" },
-              keyPoints: { type: Type.ARRAY, items: { type: Type.STRING }, description: "For LONG types" }
-            },
-            required: ["id", "question", "type", "explanation", "marks", "subject", "chapter", "difficulty", "conceptTag"]
-          }
-        }
-      }
-    });
-
-    return JSON.parse(response.text);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return JSON.parse(response.text());
   } catch (error) {
-    console.error("Gemini API Error, falling back to mock data:", error);
-    // Fallback logic: filtered mock questions
-    const fallback = MOCK_QUESTIONS.filter(q => 
-      q.subject.toLowerCase() === subject.toLowerCase() && 
-      (q.chapter.toLowerCase() === chapter.toLowerCase() || chapter === "General Awareness")
-    );
-    
-    if (fallback.length > 0) {
-      return fallback.slice(0, count);
-    }
-    
-    // If no filtered match, return random ones
-    return MOCK_QUESTIONS.sort(() => 0.5 - Math.random()).slice(0, count);
+    console.error("Gemini Quiz Error:", error);
+    return MOCK_QUESTIONS.filter(q => q.subject === subject).slice(0, count);
   }
 }
 
@@ -102,52 +87,35 @@ export async function validateAnswer(params: {
   studentAnswer: string;
 }) {
   const { subject, chapter, question, marks, studentAnswer } = params;
-  
-  const systemInstruction = `Evaluate the SSLC Class 10 written answer based on Karnataka SSLC marking scheme.
-Subject: ${subject} | Chapter: ${chapter}
-Question: ${question} | Max marks: ${marks}
-Student's answer: ${studentAnswer}
 
-Feedback TONE:
-- NEVER say "wrong".
-- Be encouraging.
-- Start with what they got right.
-- Use examiners standards.`;
+  if (!API_KEY) throw new Error("API Key missing");
 
-  const response = await ai.models.generateContent({
+  const model = genAI.getGenerativeModel({
     model: models.flash,
-    contents: "Evaluate the answer.",
-    config: {
-      systemInstruction,
+    generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          score: { type: Type.NUMBER },
-          percentage: { type: Type.NUMBER },
-          grade: { type: Type.STRING },
-          feedback: { type: Type.STRING },
-          keyPointsFound: { type: Type.ARRAY, items: { type: Type.STRING } },
-          keyPointsMissed: { type: Type.ARRAY, items: { type: Type.STRING } },
-          modelAnswer: { type: Type.STRING },
-          spellingErrors: { type: Type.ARRAY, items: { type: Type.STRING } },
-          diagramRequired: { type: Type.BOOLEAN },
-          diagramTip: { type: Type.STRING },
-          improvementTip: { type: Type.STRING },
-          marksBreakdown: {
-            type: Type.OBJECT,
-            properties: {
-              content: { type: Type.NUMBER },
-              accuracy: { type: Type.NUMBER },
-              presentation: { type: Type.NUMBER }
-            }
-          }
-        }
+          score: { type: SchemaType.NUMBER },
+          feedback: { type: SchemaType.STRING },
+          improvementTip: { type: SchemaType.STRING }
+        },
+        required: ["score", "feedback"]
       }
     }
   });
 
-  return JSON.parse(response.text);
+  const prompt = `Evaluate this SSLC Class 10 answer based on Karnataka SSLC marking scheme.
+Subject: ${subject} | Chapter: ${chapter}
+Question: ${question} | Max marks: ${marks}
+Student's answer: ${studentAnswer}
+
+Provide score and encouraging feedback.`;
+
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  return JSON.parse(response.text());
 }
 
 export async function generateStudyPlan(params: {
@@ -160,75 +128,63 @@ export async function generateStudyPlan(params: {
   strongList: string[];
   subjectScores: any;
 }) {
-  const systemInstruction = `Create a high-intensity personalised SSLC study plan for ${params.name} from ${params.school}.
-Days remaining: ${params.days}.
-Daily hours: ${params.hours}.
-Completed: ${params.completedList.join(', ')}.
-Weak: ${params.weakList.join(', ')}.
-Strong: ${params.strongList.join(', ')}.
+  if (!API_KEY) throw new Error("API Key missing");
 
-Rules:
-- RED days for high-priority weak subjects.
-- Sunday mandatory mixed revision.
-- Last 7 days ONLY revision and mocks.`;
-
-  const response = await ai.models.generateContent({
+  const model = genAI.getGenerativeModel({
     model: models.flash,
-    contents: "Generate the study plan.",
-    config: {
-      systemInstruction,
+    generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          planTitle: { type: Type.STRING },
-          totalDays: { type: Type.NUMBER },
-          examDate: { type: Type.STRING },
-          strategy: { type: Type.STRING },
+          planTitle: { type: SchemaType.STRING },
+          strategy: { type: SchemaType.STRING },
           days: {
-            type: Type.ARRAY,
+            type: SchemaType.ARRAY,
             items: {
-              type: Type.OBJECT,
+              type: SchemaType.OBJECT,
               properties: {
-                day: { type: Type.NUMBER },
-                date: { type: Type.STRING },
-                theme: { type: Type.STRING },
+                day: { type: SchemaType.NUMBER },
+                theme: { type: SchemaType.STRING },
                 morning: {
-                  type: Type.OBJECT,
+                  type: SchemaType.OBJECT,
                   properties: {
-                    subject: { type: Type.STRING },
-                    chapter: { type: Type.STRING },
-                    task: { type: Type.STRING },
-                    duration: { type: Type.STRING }
+                    subject: { type: SchemaType.STRING },
+                    chapter: { type: SchemaType.STRING }
                   }
                 },
                 afternoon: {
-                  type: Type.OBJECT,
+                  type: SchemaType.OBJECT,
                   properties: {
-                    subject: { type: Type.STRING },
-                    chapter: { type: Type.STRING },
-                    task: { type: Type.STRING },
-                    duration: { type: Type.STRING }
+                    subject: { type: SchemaType.STRING },
+                    chapter: { type: SchemaType.STRING }
                   }
                 },
                 evening: {
-                  type: Type.OBJECT,
+                  type: SchemaType.OBJECT,
                   properties: {
-                    task: { type: Type.STRING },
-                    count: { type: Type.NUMBER },
-                    type: { type: Type.STRING }
+                    task: { type: SchemaType.STRING },
+                    count: { type: SchemaType.NUMBER }
                   }
                 },
-                priority: { type: Type.STRING },
-                motivationTip: { type: Type.STRING },
-                targetScore: { type: Type.STRING }
+                priority: { type: SchemaType.STRING },
+                motivationTip: { type: SchemaType.STRING }
               }
             }
           }
-        }
+        },
+        required: ["planTitle", "strategy", "days"]
       }
     }
   });
 
-  return JSON.parse(response.text);
+  const prompt = `Create a high-intensity personalised SSLC study plan for ${params.name} from ${params.school}.
+Days left: ${params.days}. Daily hours: ${params.hours}.
+Completed: ${params.completedList.join(', ')}.
+Weak: ${params.weakList.join(', ')}. Strong: ${params.strongList.join(', ')}.
+Rules: RED days for weak topics. Last 7 days revision only.`;
+
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  return JSON.parse(response.text());
 }

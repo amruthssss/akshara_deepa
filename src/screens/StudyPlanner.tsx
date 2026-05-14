@@ -6,6 +6,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Calendar, Zap, Target, BookOpen, Clock, AlertTriangle, ArrowLeft, RefreshCw, BarChart3 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { getWeakestTopics } from '../lib/mastery';
 
 export function StudyPlanner({ onBack }: { onBack: () => void }) {
   const { profile, user } = useAuth();
@@ -31,25 +32,41 @@ export function StudyPlanner({ onBack }: { onBack: () => void }) {
     if (!profile || !user) return;
     setLoading(true);
     try {
-      const examDate = new Date(profile.examDate);
-      const daysLeft = Math.ceil((examDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      const examDate = profile.examDate ? new Date(profile.examDate) : new Date('2026-03-25');
+      const daysLeft = Math.max(7, Math.ceil((examDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
       
+      const weakTopics = getWeakestTopics();
+      const strongTopics = Object.entries(JSON.parse(localStorage.getItem('akshara_strength_map') || '{}'))
+        .filter(([_, s]) => (s as number) > 80)
+        .map(([k, _]) => k.split(':')[1]);
+
       const newPlan = await generateStudyPlan({
-        name: profile.name,
-        school: profile.school,
+        name: profile.name || 'Scholar',
+        school: profile.school || 'Karnataka SSLC Board',
         days: daysLeft,
-        hours: 4, // Default
+        hours: 4,
         completedList: [],
-        weakList: ['Trigonometry', 'Electricity', 'Nationalism in India'],
-        strongList: ['Real Numbers', 'Polynomials'],
+        weakList: weakTopics.length > 0 ? weakTopics.map(t => t.chapter) : ['Algebra', 'Electricity'],
+        strongList: strongTopics.length > 0 ? strongTopics : ['Real Numbers'],
         subjectScores: {}
       });
+
+      if (!newPlan || !newPlan.days) throw new Error("Invalid plan generated");
 
       const planRef = doc(db, 'users', user.uid, 'studyPlan', 'current');
       await setDoc(planRef, newPlan);
       setPlan(newPlan);
     } catch (err) {
-      console.error(err);
+      console.error("AI Plan Error:", err);
+      // Fail-safe: Local basic plan if AI is down
+      const fallbackPlan = {
+        planTitle: "Standard Mission 2026",
+        strategy: "Focusing on core subject mastery while the AI engine recalibrates.",
+        days: [
+          { day: 1, theme: "Foundation Building", priority: "RED", morning: { subject: "Mathematics", chapter: "Real Numbers" }, afternoon: { subject: "Science", chapter: "Chemical Reactions" }, evening: { task: "MCQ Drill", count: 20 }, motivationTip: "Consistency is key to the 2026 Mission." }
+        ]
+      };
+      setPlan(fallbackPlan);
     } finally {
       setLoading(false);
     }

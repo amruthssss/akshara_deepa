@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, signInWithCredential } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
+import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
+import { Capacitor } from '@capacitor/core';
 
 interface AuthContextType {
   user: User | null;
@@ -36,8 +38,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Initialize Google Auth
+    if (Capacitor.isNativePlatform()) {
+      GoogleSignIn.initialize({
+        clientId: '252561332006-rv546ijg5ubupaa84qlt0sdu8auitmo8.apps.googleusercontent.com',
+      });
+    }
+
     // Handle redirect result
     const handleRedirect = async () => {
+      if (Capacitor.isNativePlatform()) return; // Native doesn't use redirects
+
       try {
         const result = await getRedirectResult(auth);
         if (result?.user) {
@@ -63,20 +74,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     if (loading) return;
-    const provider = new GoogleAuthProvider();
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
+
     try {
-      if (isMobile) {
-        await signInWithRedirect(auth, provider);
+      if (Capacitor.isNativePlatform()) {
+        // Native Google Login
+        const googleUser = await GoogleSignIn.signIn();
+        const credential = GoogleAuthProvider.credential(googleUser.idToken);
+        await signInWithCredential(auth, credential);
       } else {
-        await signInWithPopup(auth, provider);
+        // Web Google Login
+        const provider = new GoogleAuthProvider();
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (isMobile) {
+          await signInWithRedirect(auth, provider);
+        } else {
+          await signInWithPopup(auth, provider);
+        }
       }
     } catch (err: any) {
-      if (err.code === 'auth/cancelled-popup-request') {
-        console.log('Previous popup request was cancelled or is already pending.');
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        console.log('Login popup was closed by user.');
+      if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
+        console.log('Login cancelled by user.');
       } else {
         console.error('Authentication Error:', err);
       }
@@ -84,6 +102,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    if (Capacitor.isNativePlatform()) {
+      await GoogleSignIn.signOut();
+    }
     await signOut(auth);
   };
 

@@ -119,28 +119,32 @@ export function SyllabusExplorer({ onStartChapter, onBack }: SyllabusExplorerPro
                       initial={{ opacity: 0, y: 30 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05, duration: 0.8 }}
-                      className="app-card !p-12 group hover:shadow-3xl hover:-translate-y-2 relative"
+                      className="app-card !p-8 md:!p-12 group hover:shadow-3xl hover:-translate-y-2 relative"
                     >
-                      {weightage > 0 && (
-                        <div className="absolute top-0 right-0 p-10 text-right">
-                            <span className="accent-label !text-[9px]">Blueprint Weight</span>
-                            <div className="flex items-baseline gap-1 pt-1">
-                               <span className={`text-4xl font-black tracking-tighter ${isDark ? 'text-[#D9FF00]' : 'text-blue-600'}`}>{weightage}</span>
-                               <span className="accent-label opacity-40">MKS</span>
-                            </div>
+                      <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
+                        <div className="space-y-4 flex-1">
+                          <div className="flex items-center gap-4">
+                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                             <span className="accent-label !opacity-60">Curriculum Unit</span>
+                          </div>
+                          <h3 className="text-3xl md:text-4xl font-black tracking-tighter leading-[1.1] group-hover:text-blue-600 transition-colors duration-500">
+                            {chapter}
+                          </h3>
                         </div>
-                      )}
+
+                        {weightage > 0 && (
+                          <div className="text-left md:text-right shrink-0">
+                              <span className="accent-label !text-[9px]">Blueprint Weight</span>
+                              <div className="flex items-baseline gap-1 pt-1 md:justify-end">
+                                 <span className={`text-3xl md:text-4xl font-black tracking-tighter ${isDark ? 'text-[#D9FF00]' : 'text-blue-600'}`}>{weightage}</span>
+                                 <span className="accent-label opacity-40">MKS</span>
+                              </div>
+                          </div>
+                        )}
+                      </div>
                       
                       <div className="space-y-8">
-                        <div className="flex items-center gap-4">
-                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                           <span className="accent-label !opacity-60">Curriculum Unit</span>
-                        </div>
-                        <h3 className="text-4xl font-black tracking-tighter leading-[1.1] pr-20 group-hover:text-blue-600 transition-colors duration-500">
-                          {chapter}
-                        </h3>
-                        
-                        <div className="flex flex-wrap gap-4">
+                        <div className="flex flex-wrap gap-3">
                           {weightage >= 7 && (
                             <div className={`px-4 py-2 rounded-xl flex items-center gap-2 border transition-all ${
                               isDark ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-red-50 text-red-600 border-red-100'

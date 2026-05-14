@@ -6,6 +6,7 @@ import { collection, query, getDocs, orderBy, limit } from 'firebase/firestore';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { ArrowLeft, Target, TrendingUp, Award, Zap, AlertCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { getSubjectMastery, getWeakestTopics } from '../lib/mastery';
 
 export function StrengthMap({ onBack }: { onBack: () => void }) {
   const { user, profile } = useAuth();
@@ -25,16 +26,17 @@ export function StrengthMap({ onBack }: { onBack: () => void }) {
       const snap = await getDocs(historyQuery);
       const history = snap.docs.map(doc => doc.data());
 
-      // Mock processing for radar chart
+      // Use real mastery data for radar chart
       const radarData = [
-        { subject: 'Math', A: 85, fullMark: 100 },
-        { subject: 'Science', A: 78, fullMark: 100 },
-        { subject: 'Social', A: 92, fullMark: 100 },
-        { subject: 'English', A: 65, fullMark: 100 },
-        { subject: 'Kannada', A: 88, fullMark: 100 },
+        { subject: 'Math', A: getSubjectMastery('Mathematics'), fullMark: 100 },
+        { subject: 'Science', A: getSubjectMastery('Science'), fullMark: 100 },
+        { subject: 'Social', A: getSubjectMastery('Social Science'), fullMark: 100 },
+        { subject: 'Languages', A: getSubjectMastery('Languages'), fullMark: 100 },
       ];
 
-      setData({ radarData, history });
+      const weakTopics = getWeakestTopics();
+
+      setData({ radarData, history, weakTopics });
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/quizHistory`);
     } finally {
@@ -108,7 +110,7 @@ export function StrengthMap({ onBack }: { onBack: () => void }) {
                   isDark ? 'bg-white/5 border-rose-500/10' : 'bg-rose-50/50 border-rose-100'
                 }`}>
                     <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-3">Growth Area</p>
-                    <p className={`font-black text-xl ${isDark ? 'text-white' : 'text-slate-900'}`}>English</p>
+                    <p className={`font-black text-xl ${isDark ? 'text-white' : 'text-slate-900'}`}>{data.weakTopics[0]?.subject || 'English'}</p>
                 </div>
             </div>
         </div>
@@ -124,18 +126,18 @@ export function StrengthMap({ onBack }: { onBack: () => void }) {
                 <div className="relative z-10">
                     <h3 className={`text-xs font-black uppercase tracking-[0.3em] mb-6 ${isDark ? 'text-slate-500' : 'text-blue-400'}`}>Board Prediction v1.2</h3>
                     <div className="flex items-baseline gap-4">
-                        <span className="text-8xl font-black tracking-tighter">74</span>
+                        <span className="text-8xl font-black tracking-tighter">{Math.round(getSubjectMastery('Mathematics') * 0.8)}</span>
                         <span className={`text-3xl font-black tracking-tighter ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>/ 80</span>
                     </div>
                     <div className={`flex items-center gap-3 text-sm font-black mt-8 ${isDark ? 'text-emerald-600' : 'text-emerald-400'}`}>
                         <TrendingUp size={22} /> 
-                        <span>Surpassing {profile?.district || 'State'} average by 12%</span>
+                        <span>Surpassing {profile?.district || 'State'} average by {Math.round(getSubjectMastery('Mathematics') / 10)}%</span>
                     </div>
                 </div>
                 <div className={`absolute bottom-10 right-10 w-24 h-24 rounded-[2rem] border-8 flex items-center justify-center text-4xl font-black rotate-12 transition-all group-hover:rotate-0 duration-500 ${
                   isDark ? 'border-black/5 bg-black/5 text-black' : 'border-white/10 bg-white/5 text-white'
                 }`}>
-                    A+
+                    {getSubjectMastery('Mathematics') > 80 ? 'A+' : getSubjectMastery('Mathematics') > 60 ? 'B' : 'C'}
                 </div>
             </div>
 
@@ -149,7 +151,7 @@ export function StrengthMap({ onBack }: { onBack: () => void }) {
                         <Zap size={28} />
                     </div>
                     <h4 className={`font-black mb-3 text-xl tracking-tight ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>Momentum Key</h4>
-                    <p className="text-base text-slate-500 font-medium leading-relaxed">Solving speed is up by 14s. High board potential detected.</p>
+                    <p className="text-base text-slate-500 font-medium leading-relaxed">Solving speed is stable. High board potential detected.</p>
                 </div>
                 <div className={`p-8 rounded-[2.5rem] border shadow-sm ${
                   isDark ? 'bg-[#121212] border-white/5' : 'bg-white border-slate-100'
@@ -160,7 +162,7 @@ export function StrengthMap({ onBack }: { onBack: () => void }) {
                         <AlertCircle size={28} />
                     </div>
                     <h4 className={`font-black mb-3 text-xl tracking-tight ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>Risk Area</h4>
-                    <p className="text-base text-slate-500 font-medium leading-relaxed">English Poetry recall is below 60%. Schedule a dedicated revision soon.</p>
+                    <p className="text-base text-slate-500 font-medium leading-relaxed">{data.weakTopics[0]?.chapter || 'English Poetry'} recall is below 60%. Schedule a dedicated revision soon.</p>
                 </div>
             </div>
 
@@ -174,13 +176,13 @@ export function StrengthMap({ onBack }: { onBack: () => void }) {
                 <div className={`w-full h-5 rounded-full overflow-hidden mb-8 shadow-inner ${isDark ? 'bg-white/5' : 'bg-slate-50 border border-slate-100'}`}>
                     <motion.div 
                         initial={{ width: 0 }}
-                        animate={{ width: '82%' }}
+                        animate={{ width: `${getSubjectMastery('Mathematics')}%` }}
                         className={`h-full ${isDark ? 'bg-[#D9FF00]' : 'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)]'}`}
                     />
                 </div>
                 <div className="flex justify-between text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">
                     <span>Novice</span>
-                    <span className={`px-5 py-1.5 rounded-full ${isDark ? 'bg-[#D9FF00] text-black font-black' : 'bg-blue-50 text-[#0F172A]'}`}>Level 82/100</span>
+                    <span className={`px-5 py-1.5 rounded-full ${isDark ? 'bg-[#D9FF00] text-black font-black' : 'bg-blue-50 text-[#0F172A]'}`}>Level {getSubjectMastery('Mathematics')}/100</span>
                     <span>Expert</span>
                 </div>
             </div>

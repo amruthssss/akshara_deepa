@@ -91,7 +91,10 @@ function AppContent() {
             >
               <Menu size={22} />
             </button>
-            <h1 className={`text-xl font-black ${theme === 'dark' ? 'text-[#D9FF00]' : 'text-[#2563EB]'}`}>Akshara-Deepa</h1>
+            <h1 className="text-xl font-black tracking-tighter">
+              <span className={theme === 'dark' ? 'text-white' : 'text-slate-900'}>Akshara</span>
+              <span className={theme === 'dark' ? 'text-[#D9FF00]' : 'text-blue-600'}>Deepa</span>
+            </h1>
           </div>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-md ${
             theme === 'dark' ? 'bg-[#D9FF00] text-black shadow-lime-500/20' : 'bg-blue-600 text-white shadow-blue-600/20'
